@@ -267,7 +267,9 @@ export const SNORFLIKS_ABI = [
     type: 'function',
     name: 'getPhase',
     inputs: [],
-    outputs: [{ name: '', type: 'uint8', internalType: 'enum Splash.Phase' }],
+    outputs: [
+      { name: '', type: 'uint8', internalType: 'enum Snorfliks.Phase' },
+    ],
     stateMutability: 'view',
   },
   {
