@@ -1,15 +1,37 @@
 import { Router } from 'express';
 import { ContractReader } from '../utils/contractReader';
+import { stateCache } from '../utils/stateCache';
+import { refreshChainData } from '../services/blockWatcher';
 
 const router = Router();
 
 router.get('/:chainId', async (req, res) => {
   try {
     const chainId = Number(req.params.chainId);
-    const reader = new ContractReader(chainId);
-    const prizePool = await reader.getPrizePool();
 
-    res.json(prizePool);
+    // Check if we need to force refresh the data
+    const forceRefresh = req.query.refresh === 'true';
+    if (forceRefresh) {
+      await refreshChainData(chainId);
+    }
+
+    // Check cache first
+    if (stateCache.prizePool[chainId]) {
+      return res.json(stateCache.prizePool[chainId]);
+    }
+
+    // Fallback to direct fetch if not cached
+    await refreshChainData(chainId);
+
+    // Now the cache should be populated
+    if (stateCache.prizePool[chainId]) {
+      return res.json(stateCache.prizePool[chainId]);
+    }
+
+    // If still no data, fetch directly
+    const reader = new ContractReader(chainId);
+    const prizePoolData = await reader.getPrizePool();
+    res.json(prizePoolData);
   } catch (error) {
     res.status(500).json({
       code: 'INTERNAL_ERROR',

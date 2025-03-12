@@ -7,9 +7,6 @@ import {
 } from 'viem';
 import { foundry, sonic, sonicBlazeTestnet } from 'viem/chains';
 
-const isDev = process.env.NODE_ENV === 'development';
-const isLocalhost = process.env.VERCEL_ENV === undefined;
-
 function getTransports(chainId: number): Transport[] {
   const alchemyKey = process.env.ALCHEMY_API_KEY;
   if (!alchemyKey) throw new Error('ALCHEMY_API_KEY not found');
@@ -43,17 +40,19 @@ const baseClients: Record<number, PublicClient> = {
   }),
 };
 
-if (isDev && isLocalhost) {
-  baseClients[foundry.id] = createPublicClient({
-    chain: foundry,
-    transport: http('http://127.0.0.1:8545'),
-  });
-}
-
 export const clients = baseClients;
 
 export function getClient(chainId: number): PublicClient {
-  const client = clients[chainId];
-  if (!client) throw new Error(`No client for chain ID: ${chainId}`);
-  return client;
+  if (clients[chainId]) {
+    return clients[chainId];
+  }
+
+  if (chainId === foundry.id) {
+    return createPublicClient({
+      chain: foundry,
+      transport: http('http://127.0.0.1:8545'),
+    });
+  }
+
+  throw new Error(`No client for chain ID: ${chainId}`);
 }

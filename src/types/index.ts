@@ -7,21 +7,39 @@ export interface TokenInfo {
   rank: number;
   receiveLimit: number;
   ranksToAssign: number;
+}
+
+export interface TokenInfoWithOwner {
+  token: TokenInfo;
   owner: Address;
-  id: BigInt;
-  claims?: readonly [bigint, bigint, bigint, bigint];
+  id: bigint;
+  claims: readonly [bigint, bigint, bigint, bigint];
 }
 
 export type GamePhase = 'peace' | 'imminent' | 'purge';
 
 export interface TokensResponse {
-  tokens: TokenInfo[];
+  tokens: readonly TokenInfoWithOwner[];
   currentNonce: number;
+}
+
+export interface GamePhaseInfo {
+  phase: GamePhase;
+  blockTimestamp: number;
+  start: number;
+  end: number;
+  cooldownExpiry: number;
+  nextTransition: number;
+}
+
+export interface PrizePoolInfo {
+  totalPrizePool: bigint;
+  communityPrize: bigint;
 }
 
 export interface GameStateResponse {
   phase: GamePhase;
-  cooldownExpiry?: number;
+  chainId: number;
 }
 
 export interface MaxMintableResponse {
