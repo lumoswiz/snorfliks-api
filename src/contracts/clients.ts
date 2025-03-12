@@ -5,7 +5,10 @@ import {
   Transport,
   PublicClient,
 } from 'viem';
-import { sonic, sonicBlazeTestnet } from 'viem/chains';
+import { foundry, sonic, sonicBlazeTestnet } from 'viem/chains';
+
+const isDev = process.env.NODE_ENV === 'development';
+const isLocalhost = process.env.VERCEL_ENV === undefined;
 
 function getTransports(chainId: number): Transport[] {
   const alchemyKey = process.env.ALCHEMY_API_KEY;
@@ -29,7 +32,7 @@ function getTransports(chainId: number): Transport[] {
   }
 }
 
-export const clients: Record<number, PublicClient> = {
+const baseClients: Record<number, PublicClient> = {
   [sonic.id]: createPublicClient({
     chain: sonic,
     transport: fallback(getTransports(sonic.id), { rank: true }),
@@ -39,6 +42,15 @@ export const clients: Record<number, PublicClient> = {
     transport: fallback(getTransports(sonicBlazeTestnet.id), { rank: true }),
   }),
 };
+
+if (isDev && isLocalhost) {
+  baseClients[foundry.id] = createPublicClient({
+    chain: foundry,
+    transport: http('http://127.0.0.1:8545'),
+  });
+}
+
+export const clients = baseClients;
 
 export function getClient(chainId: number): PublicClient {
   const client = clients[chainId];
