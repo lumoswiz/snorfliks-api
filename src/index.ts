@@ -43,9 +43,12 @@ app.use('/api/max-mintable', maxMintableRouter);
 app.use('/api/prize-pool', prizePoolRouter);
 app.use('/api/images', imagesRouter);
 
-// Initialize data services
-initializeDataServices();
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+
+  initializeDataServices();
 });
