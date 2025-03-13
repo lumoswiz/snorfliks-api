@@ -65,49 +65,19 @@ async function updateChainData(
     );
     const tokenData = await reader.getTokenInfos();
 
-    // Check if token data has changed
-    function compareTokenData(a: any, b: any): boolean {
-      if (!a || !b) return true; // If either is null/undefined, consider changed
+    // Always update the cache regardless of whether data changed
+    debug.updateCount++;
+    console.log(`[DEBUG] Token update #${debug.updateCount}`);
+    console.log(`[CACHE] Updating tokens cache for chain ${chainId}`);
+    updateTokensCache(chainId, tokenData);
 
-      // Compare nonce
-      if (a.currentNonce !== b.currentNonce) return true;
-
-      // Compare token counts
-      if (a.tokens.length !== b.tokens.length) return true;
-
-      // For detailed comparison of tokens we'd need more logic
-      // For now, if nonce changed or count changed, consider it changed
-      return false;
-    }
-
-    const hasChanged = compareTokenData(tokenData, debug.lastTokenData);
-    debug.lastTokenData = {
-      currentNonce: tokenData.currentNonce,
-      tokens: { length: tokenData.tokens.length },
-    }; // Store only what we need for comparison
-
+    // Verify cache was updated
     console.log(
-      `[CACHE] Received token data with ${tokenData.tokens.length} tokens, nonce: ${tokenData.currentNonce}, data changed: ${hasChanged}`
+      `[DEBUG] Cache after update:`,
+      stateCache.tokens[chainId]
+        ? `Contains ${stateCache.tokens[chainId].tokens.length} tokens`
+        : 'Empty!'
     );
-
-    if (hasChanged) {
-      debug.updateCount++;
-      console.log(`[DEBUG] Token data changed, update #${debug.updateCount}`);
-
-      // Log before updating cache
-      console.log(`[CACHE] Updating tokens cache for chain ${chainId}`);
-      updateTokensCache(chainId, tokenData);
-
-      // Verify cache was updated
-      console.log(
-        `[DEBUG] Cache after update:`,
-        stateCache.tokens[chainId]
-          ? `Contains ${stateCache.tokens[chainId].tokens.length} tokens`
-          : 'Empty!'
-      );
-    } else {
-      console.log(`[CACHE] Token data unchanged, skipping cache update`);
-    }
 
     // Log before fetching prize pool
     console.log(
@@ -118,7 +88,7 @@ async function updateChainData(
       `[CACHE] Received prize pool data: ${prizePool.totalPrizePool} total, ${prizePool.communityPrize} community`
     );
 
-    // Log before updating prize pool cache
+    // Always update prize pool cache
     console.log(`[CACHE] Updating prize pool cache for chain ${chainId}`);
     updatePrizePoolCache(chainId, prizePool);
 
@@ -238,10 +208,14 @@ export function startBlockWatcher(chainId: number = DEFAULT_CHAIN_ID): void {
     try {
       const currentBlock = await client.getBlockNumber();
       if (currentBlock > debug.lastSeenBlock) {
+        // Get the actual block with timestamp
+        const block = await client.getBlock({ blockNumber: currentBlock });
+        const timestamp = Number(block.timestamp);
+
         console.log(
-          `[DEBUG] Fallback polling detected new block: ${currentBlock}`
+          `[DEBUG] Fallback polling detected new block: ${currentBlock}, timestamp: ${timestamp}`
         );
-        updateChainData(chainId, currentBlock, 0);
+        updateChainData(chainId, currentBlock, timestamp); // Use actual timestamp
       }
     } catch (error) {
       console.error('[DEBUG] Fallback polling error:', error);
@@ -267,8 +241,15 @@ export async function refreshChainData(
   console.log(`[DEBUG] Manual refresh requested for chain ${chainId}`);
   const client = getClient(chainId);
   const blockNumber = await client.getBlockNumber();
-  console.log(`[DEBUG] Current block for refresh: ${blockNumber}`);
-  await updateChainData(chainId, blockNumber, 0);
+
+  // Get the actual block with timestamp
+  const block = await client.getBlock({ blockNumber });
+  const timestamp = Number(block.timestamp);
+
+  console.log(
+    `[DEBUG] Current block for refresh: ${blockNumber}, timestamp: ${timestamp}`
+  );
+  await updateChainData(chainId, blockNumber, timestamp); // Use actual timestamp
 }
 
 /**

@@ -51,6 +51,11 @@ export class ContractReader {
   }
 
   async getGameState() {
+    // Get current block timestamp first
+    const blockNumber = await this.client.getBlockNumber();
+    const block = await this.client.getBlock({ blockNumber });
+    const blockTimestamp = Number(block.timestamp);
+
     // Get all timing variables in a single multicall
     const [start, end, cooldownExpiry] = await this.client
       .multicall({
@@ -77,15 +82,13 @@ export class ContractReader {
         results.map((r) => (r.status === 'success' ? Number(r.result) : 0))
       );
 
-    const now = Math.floor(Date.now() / 1000);
-
     // Derive phase directly from timestamps (same logic as contract)
     let phase: GamePhase;
     if (start === 0) {
       phase = 'peace';
-    } else if (now >= start && now < end) {
+    } else if (blockTimestamp >= start && blockTimestamp < end) {
       phase = 'purge';
-    } else if (now < start) {
+    } else if (blockTimestamp < start) {
       phase = 'imminent';
     } else {
       phase = 'peace';
@@ -103,7 +106,7 @@ export class ContractReader {
 
     return {
       phase,
-      blockTimestamp: now,
+      blockTimestamp,
       start,
       end,
       cooldownExpiry,
