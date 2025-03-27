@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { ContractReader } from '../utils/contractReader';
 import { stateCache } from '../utils/stateCache';
 import { refreshChainData } from '../services/blockWatcher';
 
@@ -12,27 +11,26 @@ router.get('/:chainId', async (req, res) => {
 
     // Check if we need to force refresh the data
     const forceRefresh = req.query.refresh === 'true';
-    if (forceRefresh) {
+
+    // If cache is empty or force refresh requested, refresh the data
+    if (forceRefresh || !stateCache.tokens[chainId]) {
       await refreshChainData(chainId);
     }
 
-    // Check cache first
+    // Return from cache (which should now be populated)
     if (stateCache.tokens[chainId]) {
-      return res.json(stateCache.tokens[chainId]);
+      return res.json({
+        ...(stateCache.tokens[chainId] || {}),
+        _cached: true,
+        _cacheTime: stateCache.lastUpdateTime?.[chainId] || 0,
+      });
     }
 
-    // Fallback to direct fetch if not cached
-    await refreshChainData(chainId);
-
-    // Now the cache should be populated
-    if (stateCache.tokens[chainId]) {
-      return res.json(stateCache.tokens[chainId]);
-    }
-
-    // If still no data, fetch directly
-    const reader = new ContractReader(chainId);
-    const tokenData = await reader.getTokenInfos();
-    res.json(tokenData);
+    // If still no data, return error
+    res.status(500).json({
+      code: 'DATA_UNAVAILABLE',
+      message: 'Failed to fetch token data',
+    });
   } catch (error) {
     res.status(500).json({
       code: 'INTERNAL_ERROR',

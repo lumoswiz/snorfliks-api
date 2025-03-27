@@ -6,6 +6,7 @@ export interface StateCache {
   gameState: Record<number, GamePhaseInfo>;
   lastBlockProcessed: Record<number, bigint>;
   lastUpdateTime: Record<number, number>;
+  debug: (chainId: number) => void;
 }
 
 // Initialize the global state cache
@@ -15,6 +16,25 @@ export const stateCache: StateCache = {
   gameState: {},
   lastBlockProcessed: {},
   lastUpdateTime: {},
+  debug: (chainId: number) => {
+    console.log(`[StateCache] Debug for chainId ${chainId}:`);
+    console.log(`  - Has game state: ${!!stateCache.gameState[chainId]}`);
+    console.log(`  - Game state type: ${typeof stateCache.gameState[chainId]}`);
+    console.log(
+      `  - Last update: ${stateCache.lastUpdateTime[chainId] || 'never'}`
+    );
+
+    // Add more detailed information about the game state
+    if (stateCache.gameState[chainId]) {
+      const state = stateCache.gameState[chainId];
+      console.log(
+        `  - Game phase: ${
+          state.phase !== undefined ? state.phase : 'undefined'
+        }`
+      );
+      console.log(`  - Game state keys: ${Object.keys(state).join(', ')}`);
+    }
+  },
 };
 
 // Update functions for each cache type

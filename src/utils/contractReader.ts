@@ -5,7 +5,7 @@ import type { Address, PublicClient } from 'viem';
 import { GamePhase } from '../types';
 
 export class ContractReader {
-  private client: PublicClient;
+  public client: PublicClient;
   private chainId: number;
 
   constructor(chainId: number) {
@@ -13,76 +13,60 @@ export class ContractReader {
     this.chainId = chainId;
   }
 
-  async getTokenInfos() {
-    const [infos, nonce] = await this.client.readContract({
-      address: UI_SNORFLIKS[this.chainId],
-      abi: UI_SNORFLIKS_ABI,
-      functionName: 'getInfos',
-    });
-
-    return { tokens: infos, currentNonce: Number(nonce) };
-  }
-
-  async getMaxMintable(address: Address) {
-    const maxMintable = await this.client.readContract({
-      address: SNORFLIKS[this.chainId],
-      abi: SNORFLIKS_ABI,
-      functionName: 'getMaxMintable',
-      args: [address],
-    });
-
-    return Number(maxMintable);
-  }
-
-  async getPrizePool() {
-    const [snorfliksBalance, splitterBalance] = await Promise.all([
-      this.client.getBalance({
-        address: SNORFLIKS[this.chainId],
-      }),
-      this.client.getBalance({
-        address: SPLITTER[this.chainId],
-      }),
-    ]);
-
-    const totalPrizePool = snorfliksBalance + splitterBalance;
-    const communityPrize = (totalPrizePool * BigInt(7)) / BigInt(10);
-
-    return { totalPrizePool, communityPrize };
-  }
-
-  async getGameState() {
-    // Get current block timestamp first
+  /**
+   * Get all data in a single optimized call for the block watcher
+   */
+  async getAllData() {
+    // Get current block first
     const blockNumber = await this.client.getBlockNumber();
     const block = await this.client.getBlock({ blockNumber });
     const blockTimestamp = Number(block.timestamp);
 
-    // Get all timing variables in a single multicall
-    const [start, end, cooldownExpiry] = await this.client
-      .multicall({
-        contracts: [
-          {
-            address: SNORFLIKS[this.chainId],
-            abi: SNORFLIKS_ABI,
-            functionName: 'start',
-          },
-          {
-            address: SNORFLIKS[this.chainId],
-            abi: SNORFLIKS_ABI,
-            functionName: 'end',
-          },
-          {
-            address: SNORFLIKS[this.chainId],
-            abi: SNORFLIKS_ABI,
-            functionName: 'cooldownExpiry',
-          },
-        ],
-        multicallAddress: '0xca11bde05977b3631167028862be2a173976ca11',
-      })
-      .then((results) =>
-        results.map((r) => (r.status === 'success' ? Number(r.result) : 0))
-      );
+    // Combine all contract reads into a single multicall
+    const results = await this.client.multicall({
+      contracts: [
+        // UI_SNORFLIKS getInfos call
+        {
+          address: UI_SNORFLIKS[this.chainId],
+          abi: UI_SNORFLIKS_ABI,
+          functionName: 'getInfos',
+        },
+        // Game state timing variables
+        {
+          address: SNORFLIKS[this.chainId],
+          abi: SNORFLIKS_ABI,
+          functionName: 'start',
+        },
+        {
+          address: SNORFLIKS[this.chainId],
+          abi: SNORFLIKS_ABI,
+          functionName: 'end',
+        },
+        {
+          address: SNORFLIKS[this.chainId],
+          abi: SNORFLIKS_ABI,
+          functionName: 'cooldownExpiry',
+        },
+      ],
+      multicallAddress: '0xca11bde05977b3631167028862be2a173976ca11',
+    });
 
-    // Derive phase directly from timestamps (same logic as contract)
+    // Process token infos
+    const tokenInfoResult =
+      results[0].status === 'success' ? results[0].result : [[], 0];
+    const tokens = {
+      tokens: tokenInfoResult[0],
+      currentNonce: Number(tokenInfoResult[1]),
+    };
+
+    // Process game state
+    const start =
+      results[1].status === 'success' ? Number(results[1].result) : 0;
+    const end = results[2].status === 'success' ? Number(results[2].result) : 0;
+    const cooldownExpiry =
+      results[3].status === 'success' ? Number(results[3].result) : 0;
+
+    // Derive phase directly from timestamps
     let phase: GamePhase;
     if (start === 0) {
       phase = 'peace';
@@ -94,7 +78,7 @@ export class ContractReader {
       phase = 'peace';
     }
 
-    // Determine next transition based on derived phase
+    // Determine next transition
     let nextTransition = 0;
     if (phase === 'peace') {
       nextTransition = cooldownExpiry;
@@ -104,7 +88,7 @@ export class ContractReader {
       nextTransition = end;
     }
 
-    return {
+    const gameState = {
       phase,
       blockTimestamp,
       start,
@@ -112,5 +96,42 @@ export class ContractReader {
       cooldownExpiry,
       nextTransition,
     };
+
+    // Get prize pool data in parallel
+    const [snorfliksBalance, splitterBalance] = await Promise.all([
+      this.client.getBalance({
+        address: SNORFLIKS[this.chainId],
+      }),
+      this.client.getBalance({
+        address: SPLITTER[this.chainId],
+      }),
+    ]);
+
+    const totalPrizePool = snorfliksBalance + splitterBalance;
+    const communityPrize = (totalPrizePool * BigInt(7)) / BigInt(10);
+    const prizePool = { totalPrizePool, communityPrize };
+
+    // Return all data at once
+    return {
+      tokens,
+      gameState,
+      prizePool,
+      blockNumber,
+      blockTimestamp,
+    };
+  }
+
+  /**
+   * Only keep this method as it's directly called by maxMintableRouter
+   */
+  async getMaxMintable(address: Address) {
+    const maxMintable = await this.client.readContract({
+      address: SNORFLIKS[this.chainId],
+      abi: SNORFLIKS_ABI,
+      functionName: 'getMaxMintable',
+      args: [address],
+    });
+
+    return Number(maxMintable);
   }
 }

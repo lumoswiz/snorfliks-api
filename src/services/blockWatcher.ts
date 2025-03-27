@@ -8,6 +8,7 @@ import {
   updateLastProcessedBlock,
   updateGameStateCache,
 } from '../utils/stateCache';
+import type { TokensResponse, GamePhaseInfo, PrizePoolInfo } from '../types';
 
 // Chain name to ID mapping
 const CHAIN_MAPPING = {
@@ -24,7 +25,7 @@ const DEFAULT_CHAIN_ID =
   CHAIN_MAPPING[CHAIN_ENV as keyof typeof CHAIN_MAPPING] || foundry.id;
 
 // Near the top of the file, with other constants
-const POLLING_INTERVAL = Number(process.env.BLOCK_POLLING_INTERVAL) || 1000; // Default 1s, configurable via env
+const POLLING_INTERVAL = Number(process.env.POLLING_INTERVAL || 1000); // Default 1s, configurable via env
 
 /**
  * Updates data for the specified chain
@@ -45,54 +46,24 @@ async function updateChainData(
 
     const reader = new ContractReader(chainId);
 
-    // Fetch token data
-    const tokenData = await reader.getTokenInfos();
-    updateTokensCache(chainId, tokenData);
+    // Get all data in a single optimized call
+    const { tokens, gameState, prizePool } = await reader.getAllData();
 
-    // Fetch prize pool data
-    const prizePool = await reader.getPrizePool();
-    updatePrizePoolCache(chainId, prizePool);
+    // Update all caches
+    updateTokensCache(chainId, tokens as TokensResponse);
+    updatePrizePoolCache(chainId, prizePool as PrizePoolInfo);
+    updateGameStateCache(chainId, gameState as GamePhaseInfo);
 
-    // Smartly determine if we need to check game state
-    const now = blockTimestamp;
-    let shouldUpdateGameState = false;
-
-    // If no game state exists, always update
-    if (!stateCache.gameState[chainId]) {
-      shouldUpdateGameState = true;
-    } else {
-      const currentGameState = stateCache.gameState[chainId];
-
-      // Check if we're close to any transition time
-      const nextTransition = currentGameState.nextTransition || 0;
-      const closeToTransition = Math.abs(nextTransition - now) < 300; // Within 5 mins
-
-      // We're past cooldown expiry, check more frequently (possible phase changes)
-      const pastCooldown = now >= currentGameState.cooldownExpiry;
-
-      // Determine update frequency
-      const lastUpdate = stateCache.lastUpdateTime?.[chainId] || 0;
-      const timeSinceUpdate = now - lastUpdate;
-
-      // Update frequently near transitions, less frequently otherwise
-      if (closeToTransition || pastCooldown) {
-        shouldUpdateGameState = timeSinceUpdate > 5000; // Every 5 seconds near transitions
-      } else {
-        shouldUpdateGameState = timeSinceUpdate > 30000; // Every 30 seconds normally
-      }
-    }
-
-    if (shouldUpdateGameState) {
-      const gameState = await reader.getGameState();
-      updateGameStateCache(chainId, gameState);
-
-      // Update last check time
-      if (!stateCache.lastUpdateTime) stateCache.lastUpdateTime = {};
-      stateCache.lastUpdateTime[chainId] = now;
-    }
+    // Update last check time
+    if (!stateCache.lastUpdateTime) stateCache.lastUpdateTime = {};
+    stateCache.lastUpdateTime[chainId] = blockTimestamp;
 
     // Track last processed block
     updateLastProcessedBlock(chainId, blockNumber);
+
+    console.log(
+      `[BlockWatcher] Updated data for chain ${chainId}, block ${blockNumber}, phase: ${gameState.phase}`
+    );
   } catch (error) {
     console.error(
       `[CACHE ERROR] Failed updating data for chain ${chainId}:`,
@@ -110,8 +81,10 @@ export function startBlockWatcher(chainId: number = DEFAULT_CHAIN_ID): void {
   // Initial data fetch
   client
     .getBlockNumber()
-    .then((blockNumber) => {
-      updateChainData(chainId, blockNumber, 0);
+    .then(async (blockNumber) => {
+      const block = await client.getBlock({ blockNumber });
+      const timestamp = Number(block.timestamp);
+      updateChainData(chainId, blockNumber, timestamp);
     })
     .catch((error) =>
       console.error(`Failed initial data fetch for chain ${chainId}:`, error)
@@ -154,14 +127,32 @@ export function startBlockWatcher(chainId: number = DEFAULT_CHAIN_ID): void {
 export async function refreshChainData(
   chainId: number = DEFAULT_CHAIN_ID
 ): Promise<void> {
-  const client = getClient(chainId);
-  const blockNumber = await client.getBlockNumber();
+  console.log(`[BlockWatcher] Refreshing chain data for chainId: ${chainId}`);
+  try {
+    const reader = new ContractReader(chainId);
 
-  // Get the actual block with timestamp
-  const block = await client.getBlock({ blockNumber });
-  const timestamp = Number(block.timestamp);
+    // Get all data in a single optimized call
+    const { tokens, gameState, prizePool, blockNumber } =
+      await reader.getAllData();
 
-  await updateChainData(chainId, blockNumber, timestamp); // Use actual timestamp
+    // Update all caches
+    updateTokensCache(chainId, tokens as TokensResponse);
+    updatePrizePoolCache(chainId, prizePool as PrizePoolInfo);
+    updateGameStateCache(chainId, gameState as GamePhaseInfo);
+
+    // Update timestamps
+    stateCache.lastUpdateTime[chainId] = Date.now();
+    updateLastProcessedBlock(chainId, BigInt(blockNumber));
+
+    console.log(
+      `[BlockWatcher] Manually refreshed data for chainId ${chainId}, phase: ${gameState.phase}`
+    );
+  } catch (error) {
+    console.error(
+      `[BlockWatcher] Error refreshing chain data for chainId ${chainId}:`,
+      error
+    );
+  }
 }
 
 /**
