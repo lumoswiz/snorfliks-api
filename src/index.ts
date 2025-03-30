@@ -19,11 +19,7 @@ const CHAIN_ENV = process.env.CHAIN_ENV || 'foundry';
 app.use(requestLogger);
 
 // Conditional CORS based on environment
-if (CHAIN_ENV === 'foundry') {
-  // Development mode - allow all origins
-  app.use(cors());
-  console.log('CORS: Development mode - allowing all origins');
-} else {
+if (CHAIN_ENV === 'sonic') {
   // Production mode - restrict to specific origins
   app.use(
     cors({
@@ -33,6 +29,10 @@ if (CHAIN_ENV === 'foundry') {
     })
   );
   console.log('CORS: Production mode - restricting origins');
+} else {
+  // Development mode - allow all origins
+  app.use(cors());
+  console.log('CORS: Development mode - allowing all origins');
 }
 
 app.use(express.json());
