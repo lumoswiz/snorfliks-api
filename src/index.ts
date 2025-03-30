@@ -12,8 +12,24 @@ import { initializeDataServices } from './services/blockWatcher';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const CHAIN_ENV = process.env.CHAIN_ENV || 'foundry';
 
-app.use(cors());
+if (CHAIN_ENV === 'foundry') {
+  // Development mode - allow all origins
+  app.use(cors());
+  console.log('CORS: Development mode - allowing all origins');
+} else {
+  // Production mode - restrict to specific origins
+  app.use(
+    cors({
+      origin: ['https://www.snorfliks.xyz', 'https://snorfliks.xyz'],
+      methods: ['GET', 'OPTIONS'],
+      maxAge: 86400,
+    })
+  );
+  console.log('CORS: Production mode - restricting origins');
+}
+
 app.use(express.json());
 
 app.use((req, res, next) => {
@@ -24,10 +40,8 @@ app.use((req, res, next) => {
       JSON.parse(
         JSON.stringify(body, (key, value) => {
           if (typeof value === 'bigint') {
-            // Only convert bigints to strings
             return value.toString();
           }
-          // Keep regular numbers as numbers
           return value;
         })
       )
