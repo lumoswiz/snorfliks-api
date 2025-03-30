@@ -16,11 +16,18 @@ export class ContractReader {
   /**
    * Get all data in a single optimized call for the block watcher
    */
-  async getAllData() {
-    // Get current block first
-    const blockNumber = await this.client.getBlockNumber();
-    const block = await this.client.getBlock({ blockNumber });
-    const blockTimestamp = Number(block.timestamp);
+  async getAllData(blockNumber?: bigint, blockTimestamp?: number) {
+    // Use passed values or fetch fresh ones
+    const currentBlock = blockNumber || (await this.client.getBlockNumber());
+    let timestamp = blockTimestamp;
+
+    if (timestamp === undefined) {
+      const block = await this.client.getBlock({ blockNumber: currentBlock });
+      timestamp = Number(block.timestamp);
+    }
+
+    // Now timestamp is guaranteed to be defined
+    const blockTime = timestamp;
 
     // Combine all contract reads into a single multicall
     const results = await this.client.multicall({
@@ -70,9 +77,9 @@ export class ContractReader {
     let phase: GamePhase;
     if (start === 0) {
       phase = 'peace';
-    } else if (blockTimestamp >= start && blockTimestamp < end) {
+    } else if (blockTime >= start && blockTime < end) {
       phase = 'purge';
-    } else if (blockTimestamp < start) {
+    } else if (blockTime < start) {
       phase = 'imminent';
     } else {
       phase = 'peace';
@@ -90,7 +97,7 @@ export class ContractReader {
 
     const gameState = {
       phase,
-      blockTimestamp,
+      blockTimestamp: blockTime,
       start,
       end,
       cooldownExpiry,
@@ -116,8 +123,8 @@ export class ContractReader {
       tokens,
       gameState,
       prizePool,
-      blockNumber,
-      blockTimestamp,
+      blockNumber: currentBlock,
+      blockTimestamp: blockTime,
     };
   }
 

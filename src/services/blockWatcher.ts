@@ -77,23 +77,37 @@ async function updateChainData(
  */
 export function startBlockWatcher(chainId: number = DEFAULT_CHAIN_ID): void {
   const client = getClient(chainId);
-
-  // Initial data fetch
-  client
-    .getBlockNumber()
-    .then(async (blockNumber) => {
-      const block = await client.getBlock({ blockNumber });
-      const timestamp = Number(block.timestamp);
-      updateChainData(chainId, blockNumber, timestamp);
-    })
-    .catch((error) =>
-      console.error(`Failed initial data fetch for chain ${chainId}:`, error)
-    );
+  let isWatcherFunctioning = true;
+  let fallbackIntervalId: NodeJS.Timeout | null = null;
 
   // Subscribe to new block numbers
   const unwatchFn = client.watchBlocks({
     onBlock: (block) => {
+      isWatcherFunctioning = true;
+      // If fallback was running and watcher is now working, clear the fallback
+      if (fallbackIntervalId) {
+        clearInterval(fallbackIntervalId);
+        fallbackIntervalId = null;
+        console.log(
+          `[BlockWatcher] Primary watcher resumed for chain ${chainId}, stopping fallback`
+        );
+      }
       updateChainData(chainId, BigInt(block.number), Number(block.timestamp));
+    },
+    onError: (error) => {
+      console.error(
+        `[BlockWatcher] Error in block watcher for chain ${chainId}:`,
+        error
+      );
+      isWatcherFunctioning = false;
+
+      // Start fallback polling if not already running
+      if (!fallbackIntervalId) {
+        console.log(
+          `[BlockWatcher] Starting fallback polling for chain ${chainId}`
+        );
+        startFallbackPolling();
+      }
     },
     poll: true,
     pollingInterval: POLLING_INTERVAL,
@@ -101,24 +115,27 @@ export function startBlockWatcher(chainId: number = DEFAULT_CHAIN_ID): void {
 
   console.log(`Started block watcher for chain ${chainId} (${CHAIN_ENV})`);
 
-  // Setup fallback polling just in case
-  const fallbackInterval = Math.max(POLLING_INTERVAL * 5, 5000); // At least 5s, or 5x the main polling
-  const intervalId = setInterval(async () => {
-    try {
-      const currentBlock = await client.getBlockNumber();
-      if (
-        !stateCache.lastBlockProcessed[chainId] ||
-        currentBlock > stateCache.lastBlockProcessed[chainId]
-      ) {
-        // Get the actual block with timestamp
-        const block = await client.getBlock({ blockNumber: currentBlock });
-        const timestamp = Number(block.timestamp);
-        updateChainData(chainId, currentBlock, timestamp); // Use actual timestamp
+  // Function to start fallback polling with the same interval as the main watcher
+  function startFallbackPolling() {
+    if (fallbackIntervalId) return;
+
+    fallbackIntervalId = setInterval(async () => {
+      try {
+        const currentBlock = await client.getBlockNumber();
+        if (
+          !stateCache.lastBlockProcessed[chainId] ||
+          currentBlock > stateCache.lastBlockProcessed[chainId]
+        ) {
+          // Get the actual block with timestamp
+          const block = await client.getBlock({ blockNumber: currentBlock });
+          const timestamp = Number(block.timestamp);
+          updateChainData(chainId, currentBlock, timestamp);
+        }
+      } catch (error) {
+        console.error('[ERROR] Fallback polling error:', error);
       }
-    } catch (error) {
-      console.error('[ERROR] Fallback polling error:', error);
-    }
-  }, fallbackInterval);
+    }, POLLING_INTERVAL);
+  }
 }
 
 /**
