@@ -1,4 +1,4 @@
-import { foundry, sonic, sonicBlazeTestnet } from 'viem/chains';
+import { sonic } from 'viem/chains';
 import { getClient } from '../contracts/clients';
 import { ContractReader } from '../utils/contractReader';
 import {
@@ -17,19 +17,16 @@ import type {
 } from '../types';
 import { clearCache } from '../utils/imageCache';
 
-// Chain name to ID mapping
-const CHAIN_MAPPING = {
+// Chain mapping - only Sonic in production
+export const CHAIN_MAPPING = {
   sonic: sonic.id,
-  blaze: sonicBlazeTestnet.id,
-  foundry: foundry.id,
 };
 
 // Get the chain from environment variable
-const CHAIN_ENV = process.env.CHAIN_ENV || 'foundry';
+const CHAIN_ENV = process.env.CHAIN_ENV || 'sonic';
 
-// Get the chain ID from the mapping
-const DEFAULT_CHAIN_ID =
-  CHAIN_MAPPING[CHAIN_ENV as keyof typeof CHAIN_MAPPING] || foundry.id;
+// Get the chain ID - default to Sonic
+const DEFAULT_CHAIN_ID = sonic.id;
 
 // Near the top of the file, with other constants
 const POLLING_INTERVAL = Number(process.env.POLLING_INTERVAL || 1000); // Default 1s, configurable via env

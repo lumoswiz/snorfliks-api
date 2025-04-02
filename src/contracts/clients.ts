@@ -5,54 +5,36 @@ import {
   Transport,
   PublicClient,
 } from 'viem';
-import { foundry, sonic, sonicBlazeTestnet } from 'viem/chains';
+import { sonic } from 'viem/chains';
 
-function getTransports(chainId: number): Transport[] {
+function getTransports(): Transport[] {
   const alchemyKey = process.env.ALCHEMY_API_KEY;
   if (!alchemyKey) throw new Error('ALCHEMY_API_KEY not found');
 
-  switch (chainId) {
-    case sonic.id:
-      return [
-        http('https://rpc.soniclabs.com'),
-        http('https://rpc.ankr.com/sonic_mainnet'),
-        http(`https://sonic-mainnet.g.alchemy.com/v2/${alchemyKey}`),
-      ];
-    case sonicBlazeTestnet.id:
-      return [
-        http(`https://sonic-blaze.g.alchemy.com/v2/${alchemyKey}`),
-        http('https://rpc.blaze.soniclabs.com'),
-        http('https://rpc.ankr.com/sonic_testnet'),
-      ];
-    default:
-      throw new Error(`Unsupported chain ID: ${chainId}`);
-  }
+  return [
+    http('https://rpc.soniclabs.com'),
+    http('https://rpc.ankr.com/sonic_mainnet'),
+    http(`https://sonic-mainnet.g.alchemy.com/v2/${alchemyKey}`),
+  ];
 }
 
-const baseClients: Record<number, PublicClient> = {
-  [sonic.id]: createPublicClient({
-    chain: sonic,
-    transport: fallback(getTransports(sonic.id), { rank: true }),
-  }),
-  [sonicBlazeTestnet.id]: createPublicClient({
-    chain: sonicBlazeTestnet,
-    transport: fallback(getTransports(sonicBlazeTestnet.id), { rank: true }),
-  }),
+// Create a single client for Sonic
+const sonicClient = createPublicClient({
+  chain: sonic,
+  transport: fallback(getTransports(), { rank: true }),
+});
+
+// Export the client map with only Sonic
+export const clients: Record<number, PublicClient> = {
+  [sonic.id]: sonicClient,
 };
 
-export const clients = baseClients;
-
 export function getClient(chainId: number): PublicClient {
-  if (clients[chainId]) {
-    return clients[chainId];
+  if (chainId !== sonic.id) {
+    throw new Error(
+      `Only Sonic chain (ID: ${sonic.id}) is supported in production`
+    );
   }
 
-  if (chainId === foundry.id) {
-    return createPublicClient({
-      chain: foundry,
-      transport: http('http://127.0.0.1:8545'),
-    });
-  }
-
-  throw new Error(`No client for chain ID: ${chainId}`);
+  return sonicClient;
 }

@@ -21,7 +21,7 @@ import {
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const CHAIN_ENV = process.env.CHAIN_ENV || 'foundry';
+const CHAIN_ENV = process.env.CHAIN_ENV || 'sonic';
 
 app.use(helmet());
 
