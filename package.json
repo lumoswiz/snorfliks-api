@@ -16,9 +16,10 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "helmet": "^8.1.0",
     "node-cache": "^5.1.2",
-    "viem": "^2.23.10",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.2",
+    "viem": "^2.23.10"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

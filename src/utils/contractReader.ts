@@ -54,6 +54,11 @@ export class ContractReader {
           abi: SNORFLIKS_ABI,
           functionName: 'cooldownExpiry',
         },
+        {
+          address: SNORFLIKS[this.chainId],
+          abi: SNORFLIKS_ABI,
+          functionName: 'totalMinted',
+        },
       ],
       multicallAddress: '0xca11bde05977b3631167028862be2a173976ca11',
     });
@@ -118,11 +123,20 @@ export class ContractReader {
     const communityPrize = (totalPrizePool * BigInt(7)) / BigInt(10);
     const prizePool = { totalPrizePool, communityPrize };
 
+    // Process totalMinted result
+    const totalMintedResult =
+      results[4].status === 'success' ? Number(results[4].result) : 0;
+
+    const totalMinted = {
+      totalMinted: totalMintedResult,
+    };
+
     // Return all data at once
     return {
       tokens,
       gameState,
       prizePool,
+      totalMinted,
       blockNumber: currentBlock,
       blockTimestamp: blockTime,
     };

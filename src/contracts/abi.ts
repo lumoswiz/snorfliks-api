@@ -146,6 +146,8 @@ export const SNORFLIKS_ABI = [
     name: 'airdrop',
     inputs: [
       { name: 'receivers', type: 'address[]', internalType: 'address[]' },
+      { name: 'amounts', type: 'uint256[]', internalType: 'uint256[]' },
+      { name: 'chunkNum', type: 'uint8', internalType: 'uint8' },
     ],
     outputs: [],
     stateMutability: 'nonpayable',
@@ -325,6 +327,16 @@ export const SNORFLIKS_ABI = [
   },
   {
     type: 'function',
+    name: 'isAuthorizedForToken',
+    inputs: [
+      { name: 'addr', type: 'address', internalType: 'address' },
+      { name: 'tokenId', type: 'uint256', internalType: 'uint256' },
+    ],
+    outputs: [{ name: '', type: 'bool', internalType: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'mint',
     inputs: [{ name: 'amount', type: 'uint8', internalType: 'uint8' }],
     outputs: [],
@@ -359,6 +371,16 @@ export const SNORFLIKS_ABI = [
     ],
     outputs: [{ name: 'result', type: 'uint256', internalType: 'uint256' }],
     stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'privilegedMint',
+    inputs: [
+      { name: 'receivers', type: 'address[]', internalType: 'address[]' },
+      { name: 'amounts', type: 'uint256[]', internalType: 'uint256[]' },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -519,6 +541,14 @@ export const SNORFLIKS_ABI = [
     inputs: [],
     outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }],
     stateMutability: 'nonpayable',
+  },
+  {
+    type: 'event',
+    name: 'AirdroppedChunk',
+    inputs: [
+      { name: 'chunkNum', type: 'uint8', indexed: true, internalType: 'uint8' },
+    ],
+    anonymous: false,
   },
   {
     type: 'event',
@@ -825,6 +855,7 @@ export const SNORFLIKS_ABI = [
   { type: 'error', name: 'SequentialMintExceedsLimit', inputs: [] },
   { type: 'error', name: 'SequentialUpToTooSmall', inputs: [] },
   { type: 'error', name: 'Snorfliks_CannotAirdrop', inputs: [] },
+  { type: 'error', name: 'Snorfliks_ChunkAlreadyProcessed', inputs: [] },
   { type: 'error', name: 'Snorfliks_CooldownPeriod', inputs: [] },
   { type: 'error', name: 'Snorfliks_IdenticalIds', inputs: [] },
   { type: 'error', name: 'Snorfliks_InsufficientFunds', inputs: [] },
@@ -834,6 +865,7 @@ export const SNORFLIKS_ABI = [
   { type: 'error', name: 'Snorfliks_InvalidTarget', inputs: [] },
   { type: 'error', name: 'Snorfliks_Locked', inputs: [] },
   { type: 'error', name: 'Snorfliks_MaxMintedForAddress', inputs: [] },
+  { type: 'error', name: 'Snorfliks_MismatchedArrays', inputs: [] },
   { type: 'error', name: 'Snorfliks_NonexistentToken', inputs: [] },
   { type: 'error', name: 'Snorfliks_OnCooldown', inputs: [] },
   { type: 'error', name: 'Snorfliks_OnlyWithdrawer', inputs: [] },

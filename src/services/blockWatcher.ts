@@ -7,8 +7,15 @@ import {
   updatePrizePoolCache,
   updateLastProcessedBlock,
   updateGameStateCache,
+  updateTotalMintedCache,
 } from '../utils/stateCache';
-import type { TokensResponse, GamePhaseInfo, PrizePoolInfo } from '../types';
+import type {
+  TokensResponse,
+  GamePhaseInfo,
+  PrizePoolInfo,
+  TotalMintedInfo,
+} from '../types';
+import { clearCache } from '../utils/imageCache';
 
 // Chain name to ID mapping
 const CHAIN_MAPPING = {
@@ -47,12 +54,18 @@ async function updateChainData(
     const reader = new ContractReader(chainId);
 
     // Get all data in a single optimized call
-    const { tokens, gameState, prizePool } = await reader.getAllData();
+    const { tokens, gameState, prizePool, totalMinted } =
+      await reader.getAllData();
+
+    // Track phase changes for cache management
+    const previousPhase = stateCache.gameState[chainId]?.phase;
+    const currentPhase = gameState.phase;
 
     // Update all caches
     updateTokensCache(chainId, tokens as TokensResponse);
     updatePrizePoolCache(chainId, prizePool as PrizePoolInfo);
     updateGameStateCache(chainId, gameState as GamePhaseInfo);
+    updateTotalMintedCache(chainId, totalMinted as TotalMintedInfo);
 
     // Update last check time
     if (!stateCache.lastUpdateTime) stateCache.lastUpdateTime = {};
@@ -60,6 +73,18 @@ async function updateChainData(
 
     // Track last processed block
     updateLastProcessedBlock(chainId, blockNumber);
+
+    // If the phase changed, clear the opposite cache
+    if (previousPhase !== currentPhase) {
+      if (currentPhase === 'purge') {
+        clearCache('peace'); // Clear peace cache when entering purge
+      } else if (currentPhase === 'peace') {
+        clearCache('purge'); // Clear purge cache when entering peace
+      }
+      console.log(
+        `[BlockWatcher] Game phase changed to ${currentPhase}, cleared opposite cache`
+      );
+    }
 
     console.log(
       `[BlockWatcher] Updated data for chain ${chainId}, block ${blockNumber}, phase: ${gameState.phase}`
@@ -149,13 +174,14 @@ export async function refreshChainData(
     const reader = new ContractReader(chainId);
 
     // Get all data in a single optimized call
-    const { tokens, gameState, prizePool, blockNumber } =
+    const { tokens, gameState, prizePool, totalMinted, blockNumber } =
       await reader.getAllData();
 
     // Update all caches
     updateTokensCache(chainId, tokens as TokensResponse);
     updatePrizePoolCache(chainId, prizePool as PrizePoolInfo);
     updateGameStateCache(chainId, gameState as GamePhaseInfo);
+    updateTotalMintedCache(chainId, totalMinted as TotalMintedInfo);
 
     // Update timestamps
     stateCache.lastUpdateTime[chainId] = Date.now();

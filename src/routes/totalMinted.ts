@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { createCachedEndpoint } from '../utils/routeHelpers';
 
 const router = Router();
+router.get('/:chainId', createCachedEndpoint('totalMinted'));
 
-router.get('/:chainId', createCachedEndpoint('prizePool'));
-
-export { router as prizePoolRouter };
+export { router as totalMintedRouter };

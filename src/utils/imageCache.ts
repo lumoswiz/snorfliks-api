@@ -1,15 +1,39 @@
 import NodeCache from 'node-cache';
+import { GamePhase } from '../types';
 
-const imageCache = new NodeCache({
-  stdTTL: 3600, // 1 hour
-  checkperiod: 600, // 10 minutes
+const peaceCache = new NodeCache({
+  stdTTL: 86400,
+  checkperiod: 3600,
   useClones: false,
+  maxKeys: 2500,
 });
 
-export const cacheImage = (key: string, buffer: Buffer) => {
-  imageCache.set(key, buffer);
+const purgeCache = new NodeCache({
+  stdTTL: 10800,
+  checkperiod: 1800,
+  useClones: false,
+  maxKeys: 2500,
+});
+
+export const cacheImage = (
+  tokenId: string,
+  buffer: Buffer,
+  phase: GamePhase
+): void => {
+  const cache = phase === 'purge' ? purgeCache : peaceCache;
+  cache.set(tokenId, buffer);
 };
 
-export const getCachedImage = (key: string): Buffer | undefined => {
-  return imageCache.get(key);
+export const getCachedImage = (
+  tokenId: string,
+  phase: GamePhase
+): Buffer | undefined => {
+  const cache = phase === 'purge' ? purgeCache : peaceCache;
+  return cache.get<Buffer>(tokenId);
+};
+
+export const clearCache = (phase: GamePhase): void => {
+  const cache = phase === 'purge' ? purgeCache : peaceCache;
+  cache.flushAll();
+  console.log(`[ImageCache] ${phase} cache cleared`);
 };

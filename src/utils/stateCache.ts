@@ -1,9 +1,15 @@
-import type { TokensResponse, GamePhaseInfo, PrizePoolInfo } from '../types';
+import type {
+  TokensResponse,
+  GamePhaseInfo,
+  PrizePoolInfo,
+  TotalMintedInfo,
+} from '../types';
 
 export interface StateCache {
   tokens: Record<number, TokensResponse>;
   prizePool: Record<number, PrizePoolInfo>;
   gameState: Record<number, GamePhaseInfo>;
+  totalMinted: Record<number, TotalMintedInfo>;
   lastBlockProcessed: Record<number, bigint>;
   lastUpdateTime: Record<number, number>;
   debug: (chainId: number) => void;
@@ -14,6 +20,7 @@ export const stateCache: StateCache = {
   tokens: {},
   prizePool: {},
   gameState: {},
+  totalMinted: {},
   lastBlockProcessed: {},
   lastUpdateTime: {},
   debug: (chainId: number) => {
@@ -61,4 +68,11 @@ export function updateLastProcessedBlock(
   blockNumber: bigint
 ): void {
   stateCache.lastBlockProcessed[chainId] = blockNumber;
+}
+
+export function updateTotalMintedCache(
+  chainId: number,
+  data: TotalMintedInfo
+): void {
+  stateCache.totalMinted[chainId] = data;
 }

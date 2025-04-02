@@ -37,18 +37,6 @@ export interface PrizePoolInfo {
   communityPrize: bigint;
 }
 
-export interface GameStateResponse {
-  phase: GamePhase;
-  chainId: number;
-}
-
-export interface MaxMintableResponse {
-  maxMintable: number;
-  address: Address;
-}
-
-export interface ApiError {
-  code: string;
-  message: string;
-  details?: unknown;
+export interface TotalMintedInfo {
+  totalMinted: number;
 }
