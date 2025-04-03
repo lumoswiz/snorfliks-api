@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import { ContractReader } from '../utils/contractReader';
+import { getChainId } from '../utils/routeHelpers';
 import type { Address } from 'viem';
 
 const router = Router();
 
 router.get('/:chainId/:address', async (req, res) => {
   try {
-    const chainId = Number(req.params.chainId);
+    const chainId = getChainId(req.params.chainId);
     const address = req.params.address as Address;
 
     const reader = new ContractReader(chainId);

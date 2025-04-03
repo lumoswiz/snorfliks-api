@@ -30,7 +30,7 @@ if (CHAIN_ENV === 'sonic') {
   // Production mode - restrict to specific origins
   app.use(
     cors({
-      origin: ['https://www.snorfliks.xyz', 'https://snorfliks.xyz'],
+      origin: ['https://snorfliks.xyz'],
       methods: ['GET', 'OPTIONS'],
       maxAge: 86400,
     })

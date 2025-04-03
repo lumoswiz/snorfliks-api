@@ -1,14 +1,24 @@
 import { Request, Response } from 'express';
 import { stateCache } from './stateCache';
 import { refreshChainData } from '../services/blockWatcher';
+import { sonic } from 'viem/chains';
 
-// Only allow keys that map to records, excluding function keys like 'debug'
 type CacheDataKey = Exclude<keyof typeof stateCache, 'debug'>;
+
+export function getChainId(requestChainId: string | number): number {
+  if (process.env.NODE_ENV === 'production') {
+    return sonic.id;
+  }
+
+  return typeof requestChainId === 'string'
+    ? parseInt(requestChainId, 10)
+    : requestChainId;
+}
 
 export const createCachedEndpoint = (cacheKey: CacheDataKey) => {
   return async (req: Request, res: Response) => {
     try {
-      const chainId = Number(req.params.chainId);
+      const chainId = getChainId(req.params.chainId);
       const forceRefresh = req.query.refresh === 'true';
 
       if (forceRefresh || !stateCache[cacheKey][chainId]) {
