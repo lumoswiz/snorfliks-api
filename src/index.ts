@@ -30,7 +30,10 @@ if (CHAIN_ENV === 'sonic') {
   // Production mode - restrict to specific origins
   app.use(
     cors({
-      origin: ['https://snorfliks.xyz'],
+      origin: [
+        'https://snorfliks.xyz',
+        'https://snorfliks-app-git-feat-pre-27f16f-adam-morris-projects-5347b04e.vercel.app',
+      ],
       methods: ['GET', 'OPTIONS'],
       maxAge: 86400,
     })
